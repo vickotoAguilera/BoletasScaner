@@ -9,10 +9,12 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { GoogleGenerativeAI } from '@google/generative-ai';
 
-// Modelos con fallback
+// Modelos verificados (enero 2026)
+// Primary: mejor calidad para OCR
+// Fallback: más cuota gratuita disponible
 const MODELS = {
-  primary: 'gemini-2.0-flash',
-  fallback: 'gemini-1.5-flash',
+  primary: 'gemini-3-flash-preview',
+  fallback: 'gemini-2.5-flash-lite',
 };
 
 // Prompt optimizado para boletas chilenas
