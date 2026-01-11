@@ -17,7 +17,7 @@ const MODELS = {
   fallback: 'gemini-2.5-flash-lite',
 };
 
-// Prompt optimizado para boletas chilenas
+// Prompt optimizado para boletas chilenas con IVA detallado
 const BOLETA_PROMPT = `Analiza esta imagen de una boleta o recibo chileno y extrae la información en formato JSON.
 
 IMPORTANTE: 
@@ -25,12 +25,15 @@ IMPORTANTE:
 - Los montos deben ser números sin símbolos ($, puntos de miles)
 - La fecha debe estar en formato YYYY-MM-DD
 - Sugiere una categoría basada en el tipo de tienda
+- En Chile el IVA es 19%. Si el total incluye IVA, calcula el neto dividiendo por 1.19
+- Para cada producto, calcula el precioNeto y el IVA individual
 
 Responde SOLO con un JSON válido con esta estructura:
 {
   "tienda": "nombre del comercio",
   "rutTienda": "RUT (XX.XXX.XXX-X) o null",
-  "direccion": "dirección o null",
+  "direccion": "dirección completa o null",
+  "ciudad": "ciudad donde está la tienda (extraer de dirección) o null",
   "numeroBoleta": "número de boleta o null",
   "fecha": "YYYY-MM-DD",
   "hora": "HH:MM:SS o null",
@@ -38,12 +41,16 @@ Responde SOLO con un JSON válido con esta estructura:
     {
       "cantidad": 1,
       "descripcion": "descripción del producto",
-      "precioUnitario": 1000,
-      "subtotal": 1000
+      "precioUnitario": 1190,
+      "precioNeto": 1000,
+      "iva": 190,
+      "subtotal": 1190,
+      "subtotalNeto": 1000
     }
   ],
-  "total": 1000,
-  "iva": 160,
+  "totalBruto": 1190,
+  "totalNeto": 1000,
+  "iva": 190,
   "metodoPago": "efectivo|debito|credito|transferencia|otro",
   "categoriaSugerida": "supermercado|farmacia|restaurante|transporte|servicios|entretenimiento|ropa|tecnologia|hogar|salud|educacion|alimentos|otro",
   "confianza": 85

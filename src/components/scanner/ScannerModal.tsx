@@ -7,18 +7,23 @@ interface BoletaItem {
   cantidad: number;
   descripcion: string;
   precioUnitario: number;
+  precioNeto: number;
+  iva: number;
   subtotal: number;
+  subtotalNeto: number;
 }
 
 interface BoletaData {
   tienda: string;
   rutTienda: string | null;
   direccion: string | null;
+  ciudad: string | null;
   numeroBoleta: string | null;
   fecha: string;
   hora: string | null;
   items: BoletaItem[];
-  total: number;
+  totalBruto: number;
+  totalNeto: number;
   iva: number;
   metodoPago: string;
   categoriaSugerida: string;
@@ -30,6 +35,14 @@ interface ScannerModalProps {
   onClose: () => void;
   onSave: (data: BoletaData, imageUrl: string) => void;
 }
+
+// Lista de ciudades comunes de Chile
+const CIUDADES_CHILE = [
+  'Santiago', 'Valparaíso', 'Viña del Mar', 'Concepción', 'Antofagasta',
+  'Temuco', 'Rancagua', 'La Serena', 'Puerto Montt', 'Iquique',
+  'Talca', 'Arica', 'Chillán', 'Valdivia', 'Osorno', 'Coquimbo',
+  'Copiapó', 'Punta Arenas', 'Los Ángeles', 'Calama', 'Otra'
+];
 
 export default function ScannerModal({ isOpen, onClose, onSave }: ScannerModalProps) {
   const [step, setStep] = useState<'capture' | 'analyzing' | 'review'>('capture');
@@ -99,7 +112,6 @@ export default function ScannerModal({ isOpen, onClose, onSave }: ScannerModalPr
       const base64 = canvas.toDataURL('image/jpeg');
       setImagePreview(base64);
       
-      // Stop camera
       if (stream) {
         stream.getTracks().forEach(track => track.stop());
         setStream(null);
@@ -124,7 +136,14 @@ export default function ScannerModal({ isOpen, onClose, onSave }: ScannerModalPr
       const result = await response.json();
 
       if (result.success && result.data) {
-        setBoletaData(result.data);
+        // Normalizar datos si vienen con formato antiguo
+        const data = result.data;
+        if (data.total && !data.totalBruto) {
+          data.totalBruto = data.total;
+          data.totalNeto = Math.round(data.total / 1.19);
+          data.iva = data.totalBruto - data.totalNeto;
+        }
+        setBoletaData(data);
         setStep('review');
       } else {
         setError(result.error || 'No se pudo analizar la imagen');
@@ -182,12 +201,7 @@ export default function ScannerModal({ isOpen, onClose, onSave }: ScannerModalPr
             <div className="space-y-6">
               {usingCamera ? (
                 <div className="relative">
-                  <video
-                    ref={videoRef}
-                    autoPlay
-                    playsInline
-                    className="w-full rounded-xl bg-black"
-                  />
+                  <video ref={videoRef} autoPlay playsInline className="w-full rounded-xl bg-black" />
                   <button
                     onClick={capturePhoto}
                     className="absolute bottom-4 left-1/2 -translate-x-1/2 w-16 h-16 bg-white rounded-full flex items-center justify-center hover:bg-gray-200 transition-colors"
@@ -196,21 +210,10 @@ export default function ScannerModal({ isOpen, onClose, onSave }: ScannerModalPr
                   </button>
                 </div>
               ) : imagePreview ? (
-                <div className="relative">
-                  <Image
-                    src={imagePreview}
-                    alt="Preview"
-                    width={600}
-                    height={400}
-                    className="w-full rounded-xl object-contain max-h-80"
-                  />
-                </div>
+                <Image src={imagePreview} alt="Preview" width={600} height={400} className="w-full rounded-xl object-contain max-h-80" />
               ) : (
                 <div className="grid grid-cols-2 gap-4">
-                  <button
-                    onClick={startCamera}
-                    className="flex flex-col items-center justify-center gap-3 p-8 bg-white/5 border border-white/10 rounded-2xl hover:border-[#00d4aa]/50 transition-colors"
-                  >
+                  <button onClick={startCamera} className="flex flex-col items-center justify-center gap-3 p-8 bg-white/5 border border-white/10 rounded-2xl hover:border-[#00d4aa]/50 transition-colors">
                     <div className="w-16 h-16 bg-[#00d4aa]/20 rounded-full flex items-center justify-center">
                       <svg className="w-8 h-8 text-[#00d4aa]" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                         <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M3 9a2 2 0 012-2h.93a2 2 0 001.664-.89l.812-1.22A2 2 0 0110.07 4h3.86a2 2 0 011.664.89l.812 1.22A2 2 0 0018.07 7H19a2 2 0 012 2v9a2 2 0 01-2 2H5a2 2 0 01-2-2V9z" />
@@ -219,11 +222,7 @@ export default function ScannerModal({ isOpen, onClose, onSave }: ScannerModalPr
                     </div>
                     <span className="font-medium">Usar Cámara</span>
                   </button>
-
-                  <button
-                    onClick={() => fileInputRef.current?.click()}
-                    className="flex flex-col items-center justify-center gap-3 p-8 bg-white/5 border border-white/10 rounded-2xl hover:border-[#00d4aa]/50 transition-colors"
-                  >
+                  <button onClick={() => fileInputRef.current?.click()} className="flex flex-col items-center justify-center gap-3 p-8 bg-white/5 border border-white/10 rounded-2xl hover:border-[#00d4aa]/50 transition-colors">
                     <div className="w-16 h-16 bg-[#00d4aa]/20 rounded-full flex items-center justify-center">
                       <svg className="w-8 h-8 text-[#00d4aa]" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                         <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 16l4.586-4.586a2 2 0 012.828 0L16 16m-2-2l1.586-1.586a2 2 0 012.828 0L20 14m-6-6h.01M6 20h12a2 2 0 002-2V6a2 2 0 00-2-2H6a2 2 0 00-2 2v12a2 2 0 002 2z" />
@@ -233,14 +232,7 @@ export default function ScannerModal({ isOpen, onClose, onSave }: ScannerModalPr
                   </button>
                 </div>
               )}
-
-              <input
-                ref={fileInputRef}
-                type="file"
-                accept="image/*"
-                onChange={handleFileSelect}
-                className="hidden"
-              />
+              <input ref={fileInputRef} type="file" accept="image/*" onChange={handleFileSelect} className="hidden" />
             </div>
           )}
 
@@ -249,73 +241,46 @@ export default function ScannerModal({ isOpen, onClose, onSave }: ScannerModalPr
             <div className="flex flex-col items-center justify-center py-12">
               <div className="w-16 h-16 border-4 border-[#00d4aa] border-t-transparent rounded-full animate-spin mb-6" />
               <p className="text-gray-400">Analizando boleta con IA...</p>
-              <p className="text-gray-500 text-sm mt-2">Esto puede tomar unos segundos</p>
+              <p className="text-gray-500 text-sm mt-2">Calculando IVA y totales</p>
             </div>
           )}
 
           {/* Step: Review */}
           {step === 'review' && boletaData && (
-            <div className="space-y-6">
-              {/* Confidence indicator */}
+            <div className="space-y-5">
+              {/* Confidence */}
               <div className="flex items-center gap-3 p-3 bg-white/5 rounded-xl">
-                <div className={`w-3 h-3 rounded-full ${
-                  boletaData.confianza >= 80 ? 'bg-green-500' :
-                  boletaData.confianza >= 60 ? 'bg-yellow-500' : 'bg-red-500'
-                }`} />
-                <span className="text-sm text-gray-400">
-                  Confianza del análisis: <span className="text-white font-medium">{boletaData.confianza}%</span>
-                </span>
+                <div className={`w-3 h-3 rounded-full ${boletaData.confianza >= 80 ? 'bg-green-500' : boletaData.confianza >= 60 ? 'bg-yellow-500' : 'bg-red-500'}`} />
+                <span className="text-sm text-gray-400">Confianza: <span className="text-white font-medium">{boletaData.confianza}%</span></span>
               </div>
 
-              {/* Image preview */}
+              {/* Image preview small */}
               {imagePreview && (
                 <div className="flex justify-center">
-                  <Image
-                    src={imagePreview}
-                    alt="Boleta"
-                    width={200}
-                    height={300}
-                    className="rounded-xl object-contain max-h-40"
-                  />
+                  <Image src={imagePreview} alt="Boleta" width={150} height={200} className="rounded-xl object-contain max-h-32" />
                 </div>
               )}
 
               {/* Form fields */}
-              <div className="grid grid-cols-2 gap-4">
+              <div className="grid grid-cols-2 gap-3">
                 <div>
-                  <label className="block text-sm text-gray-400 mb-1">Tienda</label>
-                  <input
-                    type="text"
-                    value={boletaData.tienda || ''}
-                    onChange={(e) => updateField('tienda', e.target.value)}
-                    className="w-full bg-white/5 border border-white/10 rounded-lg px-3 py-2 focus:border-[#00d4aa] focus:outline-none"
-                  />
+                  <label className="block text-xs text-gray-400 mb-1">Tienda</label>
+                  <input type="text" value={boletaData.tienda || ''} onChange={(e) => updateField('tienda', e.target.value)} className="w-full bg-white/5 border border-white/10 rounded-lg px-3 py-2 text-sm focus:border-[#00d4aa] focus:outline-none" />
                 </div>
                 <div>
-                  <label className="block text-sm text-gray-400 mb-1">Fecha</label>
-                  <input
-                    type="date"
-                    value={boletaData.fecha || ''}
-                    onChange={(e) => updateField('fecha', e.target.value)}
-                    className="w-full bg-white/5 border border-white/10 rounded-lg px-3 py-2 focus:border-[#00d4aa] focus:outline-none"
-                  />
+                  <label className="block text-xs text-gray-400 mb-1">Ciudad</label>
+                  <select value={boletaData.ciudad || ''} onChange={(e) => updateField('ciudad', e.target.value)} className="w-full bg-white/5 border border-white/10 rounded-lg px-3 py-2 text-sm focus:border-[#00d4aa] focus:outline-none">
+                    <option value="">Seleccionar...</option>
+                    {CIUDADES_CHILE.map(c => <option key={c} value={c}>{c}</option>)}
+                  </select>
                 </div>
                 <div>
-                  <label className="block text-sm text-gray-400 mb-1">Total</label>
-                  <input
-                    type="number"
-                    value={boletaData.total || 0}
-                    onChange={(e) => updateField('total', parseInt(e.target.value))}
-                    className="w-full bg-white/5 border border-white/10 rounded-lg px-3 py-2 focus:border-[#00d4aa] focus:outline-none"
-                  />
+                  <label className="block text-xs text-gray-400 mb-1">Fecha</label>
+                  <input type="date" value={boletaData.fecha || ''} onChange={(e) => updateField('fecha', e.target.value)} className="w-full bg-white/5 border border-white/10 rounded-lg px-3 py-2 text-sm focus:border-[#00d4aa] focus:outline-none" />
                 </div>
                 <div>
-                  <label className="block text-sm text-gray-400 mb-1">Categoría</label>
-                  <select
-                    value={boletaData.categoriaSugerida || 'otro'}
-                    onChange={(e) => updateField('categoriaSugerida', e.target.value)}
-                    className="w-full bg-white/5 border border-white/10 rounded-lg px-3 py-2 focus:border-[#00d4aa] focus:outline-none"
-                  >
+                  <label className="block text-xs text-gray-400 mb-1">Categoría</label>
+                  <select value={boletaData.categoriaSugerida || 'otro'} onChange={(e) => updateField('categoriaSugerida', e.target.value)} className="w-full bg-white/5 border border-white/10 rounded-lg px-3 py-2 text-sm focus:border-[#00d4aa] focus:outline-none">
                     <option value="supermercado">Supermercado</option>
                     <option value="farmacia">Farmacia</option>
                     <option value="restaurante">Restaurante</option>
@@ -333,14 +298,39 @@ export default function ScannerModal({ isOpen, onClose, onSave }: ScannerModalPr
                 </div>
               </div>
 
-              {/* Items */}
+              {/* Totales con IVA */}
+              <div className="bg-white/5 rounded-xl p-4">
+                <h4 className="text-sm font-medium text-gray-300 mb-3">Resumen de Montos</h4>
+                <div className="grid grid-cols-3 gap-4 text-center">
+                  <div>
+                    <p className="text-xs text-gray-400">Neto</p>
+                    <p className="text-lg font-bold">${(boletaData.totalNeto || 0).toLocaleString('es-CL')}</p>
+                  </div>
+                  <div>
+                    <p className="text-xs text-gray-400">IVA (19%)</p>
+                    <p className="text-lg font-bold text-orange-400">${(boletaData.iva || 0).toLocaleString('es-CL')}</p>
+                  </div>
+                  <div>
+                    <p className="text-xs text-gray-400">Total Bruto</p>
+                    <p className="text-lg font-bold text-[#00d4aa]">${(boletaData.totalBruto || 0).toLocaleString('es-CL')}</p>
+                  </div>
+                </div>
+              </div>
+
+              {/* Items con IVA detallado */}
               <div>
-                <label className="block text-sm text-gray-400 mb-2">Productos ({boletaData.items?.length || 0})</label>
-                <div className="space-y-2 max-h-40 overflow-y-auto">
+                <label className="block text-xs text-gray-400 mb-2">Productos ({boletaData.items?.length || 0})</label>
+                <div className="space-y-2 max-h-36 overflow-y-auto">
                   {boletaData.items?.map((item, index) => (
-                    <div key={index} className="flex items-center justify-between bg-white/5 rounded-lg px-3 py-2 text-sm">
-                      <span>{item.cantidad}x {item.descripcion}</span>
-                      <span className="text-[#00d4aa]">${item.subtotal?.toLocaleString('es-CL')}</span>
+                    <div key={index} className="bg-white/5 rounded-lg px-3 py-2 text-sm">
+                      <div className="flex justify-between items-center">
+                        <span className="font-medium">{item.cantidad}x {item.descripcion}</span>
+                        <span className="text-[#00d4aa]">${(item.subtotal || 0).toLocaleString('es-CL')}</span>
+                      </div>
+                      <div className="flex justify-between text-xs text-gray-500 mt-1">
+                        <span>Neto: ${(item.subtotalNeto || Math.round((item.subtotal || 0) / 1.19)).toLocaleString('es-CL')}</span>
+                        <span>IVA: ${(item.iva || Math.round((item.subtotal || 0) - (item.subtotal || 0) / 1.19)).toLocaleString('es-CL')}</span>
+                      </div>
                     </div>
                   ))}
                 </div>
@@ -352,27 +342,12 @@ export default function ScannerModal({ isOpen, onClose, onSave }: ScannerModalPr
         {/* Footer */}
         <div className="flex items-center justify-end gap-3 p-4 border-t border-white/10">
           {step === 'capture' && imagePreview && (
-            <button
-              onClick={resetState}
-              className="px-4 py-2 text-gray-400 hover:text-white transition-colors"
-            >
-              Volver a capturar
-            </button>
+            <button onClick={resetState} className="px-4 py-2 text-gray-400 hover:text-white transition-colors">Volver</button>
           )}
           {step === 'review' && (
             <>
-              <button
-                onClick={() => setStep('capture')}
-                className="px-4 py-2 text-gray-400 hover:text-white transition-colors"
-              >
-                Escanear otra
-              </button>
-              <button
-                onClick={handleSave}
-                className="bg-[#00d4aa] hover:bg-[#00b894] text-black font-medium px-6 py-2 rounded-lg transition-colors"
-              >
-                Guardar Boleta
-              </button>
+              <button onClick={() => setStep('capture')} className="px-4 py-2 text-gray-400 hover:text-white transition-colors">Escanear otra</button>
+              <button onClick={handleSave} className="bg-[#00d4aa] hover:bg-[#00b894] text-black font-medium px-6 py-2 rounded-lg transition-colors">Guardar Boleta</button>
             </>
           )}
         </div>

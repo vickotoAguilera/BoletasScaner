@@ -2,12 +2,15 @@
  * Tipos para boletas y gastos
  */
 
-// Item individual de una boleta
+// Item individual de una boleta con IVA detallado
 export interface BoletaItem {
   cantidad: number;
   descripcion: string;
-  precioUnitario: number;
-  subtotal: number;
+  precioUnitario: number;   // Precio unitario con IVA
+  precioNeto: number;       // Precio sin IVA
+  iva: number;              // IVA del producto
+  subtotal: number;         // Total con IVA (cantidad * precioUnitario)
+  subtotalNeto: number;     // Total sin IVA
 }
 
 // Boleta completa
@@ -17,10 +20,12 @@ export interface Boleta {
   tienda: string;
   rutTienda: string;
   direccion: string;
+  ciudad: string;           // Ciudad donde se realizó la compra
   numeroBoleta: string;
   items: BoletaItem[];
-  total: number;
-  iva: number;
+  totalBruto: number;       // Total con IVA
+  totalNeto: number;        // Total sin IVA
+  iva: number;              // IVA total
   metodoPago: 'efectivo' | 'debito' | 'credito' | 'transferencia' | 'otro';
   categoria: BoletaCategoria;
   imagenURL: string;
@@ -49,15 +54,17 @@ export interface BoletaExtraida {
   tienda: string;
   rutTienda: string;
   direccion: string;
+  ciudad: string;
   numeroBoleta: string;
   fecha: string;
   hora: string;
   items: BoletaItem[];
-  total: number;
-  iva: number;
+  totalBruto: number;       // Total con IVA
+  totalNeto: number;        // Total sin IVA
+  iva: number;              // IVA total
   metodoPago: string;
   categoriaSugerida: BoletaCategoria;
-  confianza: number; // 0-100 porcentaje de confianza de la IA
+  confianza: number;
 }
 
 // Filtros para la tabla de boletas
@@ -66,6 +73,7 @@ export interface BoletaFiltros {
   fechaHasta?: Date;
   categoria?: BoletaCategoria;
   tienda?: string;
+  ciudad?: string;
   montoMinimo?: number;
   montoMaximo?: number;
 }
@@ -75,6 +83,7 @@ export interface GastosEstadisticas {
   totalMes: number;
   totalSemana: number;
   totalHoy: number;
+  ivaTotalMes: number;
   porCategoria: Record<BoletaCategoria, number>;
   cantidadBoletas: number;
   promedioGasto: number;
