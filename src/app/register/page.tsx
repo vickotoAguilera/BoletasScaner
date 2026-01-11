@@ -22,12 +22,13 @@ export default function RegisterPage() {
     photoURL: string | null;
     provider: string;
   }) => {
+    // Usar merge: true para no sobrescribir datos si el usuario ya existe
     await setDoc(doc(db, 'users', uid), {
       ...userData,
       googleDriveConnected: false,
       createdAt: new Date(),
       updatedAt: new Date(),
-    });
+    }, { merge: true });
   };
 
   const handleEmailRegister = async (e: React.FormEvent) => {

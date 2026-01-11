@@ -244,7 +244,7 @@ export default function Home() {
             <span className="font-semibold">Boleta Scanner</span>
           </div>
           <p className="text-gray-500 text-sm">
-            © 2026 Boleta Scanner. Hecho con ❤️ en Chile.
+            © 2026 Boleta Scanner. Creado por <span className="text-[#00d4aa]">vickoto</span>
           </p>
         </div>
       </footer>

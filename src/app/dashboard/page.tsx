@@ -1,15 +1,35 @@
 'use client';
 
-import { useEffect, useState } from 'react';
+import { useEffect, useState, useCallback } from 'react';
 import { useRouter } from 'next/navigation';
 import Image from 'next/image';
+import Link from 'next/link';
 import { onAuthStateChanged, signOut, User } from 'firebase/auth';
-import { auth } from '@/lib/firebase';
+import { collection, query, where, orderBy, onSnapshot, addDoc, Timestamp } from 'firebase/firestore';
+import { auth, db } from '@/lib/firebase';
+import ScannerModal from '@/components/scanner/ScannerModal';
+
+interface Boleta {
+  id: string;
+  tienda: string;
+  fecha: Date;
+  total: number;
+  categoria: string;
+  imagenURL: string;
+}
 
 export default function DashboardPage() {
   const router = useRouter();
   const [user, setUser] = useState<User | null>(null);
   const [loading, setLoading] = useState(true);
+  const [boletas, setBoletas] = useState<Boleta[]>([]);
+  const [showScanner, setShowScanner] = useState(false);
+  const [stats, setStats] = useState({
+    totalMes: 0,
+    cantidadBoletas: 0,
+    promedio: 0,
+    categoriaTop: '-'
+  });
 
   useEffect(() => {
     const unsubscribe = onAuthStateChanged(auth, (currentUser) => {
@@ -24,10 +44,99 @@ export default function DashboardPage() {
     return () => unsubscribe();
   }, [router]);
 
+  // Cargar boletas del usuario
+  useEffect(() => {
+    if (!user) return;
+
+    const boletasRef = collection(db, 'boletas');
+    const q = query(
+      boletasRef,
+      where('userId', '==', user.uid),
+      orderBy('fecha', 'desc')
+    );
+
+    const unsubscribe = onSnapshot(q, (snapshot) => {
+      const boletasData: Boleta[] = [];
+      snapshot.forEach((doc) => {
+        const data = doc.data();
+        boletasData.push({
+          id: doc.id,
+          tienda: data.tienda,
+          fecha: data.fecha?.toDate() || new Date(),
+          total: data.total,
+          categoria: data.categoria,
+          imagenURL: data.imagenURL,
+        });
+      });
+      setBoletas(boletasData);
+
+      // Calcular estadísticas
+      const now = new Date();
+      const firstDayOfMonth = new Date(now.getFullYear(), now.getMonth(), 1);
+      const boletasMes = boletasData.filter(b => b.fecha >= firstDayOfMonth);
+      const totalMes = boletasMes.reduce((sum, b) => sum + b.total, 0);
+      const promedio = boletasMes.length > 0 ? totalMes / boletasMes.length : 0;
+
+      // Categoría más frecuente
+      const categorias: Record<string, number> = {};
+      boletasMes.forEach(b => {
+        categorias[b.categoria] = (categorias[b.categoria] || 0) + 1;
+      });
+      const categoriaTop = Object.entries(categorias).sort((a, b) => b[1] - a[1])[0]?.[0] || '-';
+
+      setStats({
+        totalMes,
+        cantidadBoletas: boletasData.length,
+        promedio: Math.round(promedio),
+        categoriaTop
+      });
+    }, (error) => {
+      console.error('Error loading boletas:', error);
+    });
+
+    return () => unsubscribe();
+  }, [user]);
+
   const handleLogout = async () => {
     await signOut(auth);
     router.push('/');
   };
+
+  const handleSaveBoleta = useCallback(async (data: {
+    tienda: string;
+    fecha: string;
+    total: number;
+    categoriaSugerida: string;
+    items?: Array<{ cantidad: number; descripcion: string; precioUnitario: number; subtotal: number }>;
+    rutTienda?: string | null;
+    direccion?: string | null;
+    numeroBoleta?: string | null;
+    iva?: number;
+    metodoPago?: string;
+  }, imageUrl: string) => {
+    if (!user) return;
+
+    try {
+      await addDoc(collection(db, 'boletas'), {
+        userId: user.uid,
+        tienda: data.tienda,
+        rutTienda: data.rutTienda || null,
+        direccion: data.direccion || null,
+        numeroBoleta: data.numeroBoleta || null,
+        fecha: Timestamp.fromDate(new Date(data.fecha)),
+        items: data.items || [],
+        total: data.total,
+        iva: data.iva || 0,
+        metodoPago: data.metodoPago || 'otro',
+        categoria: data.categoriaSugerida,
+        imagenURL: imageUrl,
+        createdAt: Timestamp.now(),
+        updatedAt: Timestamp.now(),
+      });
+    } catch (error) {
+      console.error('Error saving boleta:', error);
+    }
+  }, [user]);
 
   if (loading) {
     return (
@@ -44,7 +153,7 @@ export default function DashboardPage() {
     <div className="min-h-screen bg-[#0a0a0a] text-white">
       {/* Top Navbar */}
       <nav className="flex items-center justify-between px-6 py-4 border-b border-white/10">
-        <div className="flex items-center gap-3">
+        <Link href="/" className="flex items-center gap-3">
           <Image
             src="/logo.png"
             alt="Boleta Scanner"
@@ -53,7 +162,7 @@ export default function DashboardPage() {
             className="rounded-lg"
           />
           <span className="text-lg font-semibold">Boleta Scanner</span>
-        </div>
+        </Link>
         
         <div className="flex items-center gap-4">
           {user?.photoURL && (
@@ -91,62 +200,107 @@ export default function DashboardPage() {
         <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4 mb-10">
           <div className="bg-white/5 border border-white/10 rounded-2xl p-6">
             <p className="text-gray-400 text-sm mb-2">Gastos este mes</p>
-            <p className="text-3xl font-bold text-[#00d4aa]">$0</p>
+            <p className="text-3xl font-bold text-[#00d4aa]">${stats.totalMes.toLocaleString('es-CL')}</p>
           </div>
           <div className="bg-white/5 border border-white/10 rounded-2xl p-6">
             <p className="text-gray-400 text-sm mb-2">Boletas escaneadas</p>
-            <p className="text-3xl font-bold">0</p>
+            <p className="text-3xl font-bold">{stats.cantidadBoletas}</p>
           </div>
           <div className="bg-white/5 border border-white/10 rounded-2xl p-6">
             <p className="text-gray-400 text-sm mb-2">Promedio por compra</p>
-            <p className="text-3xl font-bold">$0</p>
+            <p className="text-3xl font-bold">${stats.promedio.toLocaleString('es-CL')}</p>
           </div>
           <div className="bg-white/5 border border-white/10 rounded-2xl p-6">
             <p className="text-gray-400 text-sm mb-2">Categoría top</p>
-            <p className="text-3xl font-bold">-</p>
+            <p className="text-3xl font-bold capitalize">{stats.categoriaTop}</p>
           </div>
         </div>
 
-        {/* Empty State */}
-        <div className="bg-white/5 border border-white/10 border-dashed rounded-2xl p-12 text-center">
-          <div className="text-6xl mb-6">📸</div>
-          <h2 className="text-2xl font-bold mb-3">¡Escanea tu primera boleta!</h2>
-          <p className="text-gray-400 mb-8 max-w-md mx-auto">
-            Toma una foto de una boleta y nuestra IA extraerá automáticamente todos los datos.
-          </p>
-          <button className="inline-flex items-center gap-2 bg-[#00d4aa] hover:bg-[#00b894] text-black font-semibold px-8 py-4 rounded-full transition-all hover:shadow-[0_0_30px_rgba(0,212,170,0.4)]">
-            <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M3 9a2 2 0 012-2h.93a2 2 0 001.664-.89l.812-1.22A2 2 0 0110.07 4h3.86a2 2 0 011.664.89l.812 1.22A2 2 0 0018.07 7H19a2 2 0 012 2v9a2 2 0 01-2 2H5a2 2 0 01-2-2V9z" />
-              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 13a3 3 0 11-6 0 3 3 0 016 0z" />
-            </svg>
-            Escanear Boleta
-          </button>
-        </div>
-
-        {/* Table Placeholder */}
-        <div className="mt-10">
-          <h2 className="text-xl font-semibold mb-4">Historial de gastos</h2>
-          <div className="bg-white/5 border border-white/10 rounded-2xl overflow-hidden">
-            <div className="grid grid-cols-5 gap-4 p-4 border-b border-white/10 text-gray-400 text-sm font-medium">
-              <span>Fecha</span>
-              <span>Tienda</span>
-              <span>Categoría</span>
-              <span>Total</span>
-              <span>Acciones</span>
+        {/* Content based on boletas */}
+        {boletas.length === 0 ? (
+          /* Empty State */
+          <div className="bg-white/5 border border-white/10 border-dashed rounded-2xl p-12 text-center">
+            <div className="text-6xl mb-6">📸</div>
+            <h2 className="text-2xl font-bold mb-3">¡Escanea tu primera boleta!</h2>
+            <p className="text-gray-400 mb-8 max-w-md mx-auto">
+              Toma una foto de una boleta y nuestra IA extraerá automáticamente todos los datos.
+            </p>
+            <button 
+              onClick={() => setShowScanner(true)}
+              className="inline-flex items-center gap-2 bg-[#00d4aa] hover:bg-[#00b894] text-black font-semibold px-8 py-4 rounded-full transition-all hover:shadow-[0_0_30px_rgba(0,212,170,0.4)]"
+            >
+              <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M3 9a2 2 0 012-2h.93a2 2 0 001.664-.89l.812-1.22A2 2 0 0110.07 4h3.86a2 2 0 011.664.89l.812 1.22A2 2 0 0018.07 7H19a2 2 0 012 2v9a2 2 0 01-2 2H5a2 2 0 01-2-2V9z" />
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 13a3 3 0 11-6 0 3 3 0 016 0z" />
+              </svg>
+              Escanear Boleta
+            </button>
+          </div>
+        ) : (
+          /* Table */
+          <div>
+            <div className="flex items-center justify-between mb-4">
+              <h2 className="text-xl font-semibold">Historial de gastos</h2>
+              <button
+                onClick={() => setShowScanner(true)}
+                className="bg-[#00d4aa] hover:bg-[#00b894] text-black font-medium px-4 py-2 rounded-lg transition-colors flex items-center gap-2"
+              >
+                <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 4v16m8-8H4" />
+                </svg>
+                Nueva Boleta
+              </button>
             </div>
-            <div className="p-8 text-center text-gray-500">
-              No hay boletas registradas aún
+            <div className="bg-white/5 border border-white/10 rounded-2xl overflow-hidden">
+              <div className="grid grid-cols-5 gap-4 p-4 border-b border-white/10 text-gray-400 text-sm font-medium">
+                <span>Fecha</span>
+                <span>Tienda</span>
+                <span>Categoría</span>
+                <span>Total</span>
+                <span>Acciones</span>
+              </div>
+              {boletas.map((boleta) => (
+                <div key={boleta.id} className="grid grid-cols-5 gap-4 p-4 border-b border-white/5 items-center hover:bg-white/5 transition-colors">
+                  <span>{boleta.fecha.toLocaleDateString('es-CL')}</span>
+                  <span className="font-medium">{boleta.tienda}</span>
+                  <span className="capitalize">{boleta.categoria}</span>
+                  <span className="text-[#00d4aa] font-medium">${boleta.total.toLocaleString('es-CL')}</span>
+                  <div className="flex gap-2">
+                    <button className="text-gray-400 hover:text-white transition-colors">
+                      <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 12a3 3 0 11-6 0 3 3 0 016 0z" />
+                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M2.458 12C3.732 7.943 7.523 5 12 5c4.478 0 8.268 2.943 9.542 7-1.274 4.057-5.064 7-9.542 7-4.477 0-8.268-2.943-9.542-7z" />
+                      </svg>
+                    </button>
+                    <button className="text-gray-400 hover:text-red-400 transition-colors">
+                      <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" />
+                      </svg>
+                    </button>
+                  </div>
+                </div>
+              ))}
             </div>
           </div>
-        </div>
+        )}
       </main>
 
       {/* Floating Action Button */}
-      <button className="fixed bottom-8 right-8 w-16 h-16 bg-[#00d4aa] hover:bg-[#00b894] rounded-full shadow-lg shadow-[#00d4aa]/30 flex items-center justify-center transition-all hover:scale-110">
+      <button 
+        onClick={() => setShowScanner(true)}
+        className="fixed bottom-8 right-8 w-16 h-16 bg-[#00d4aa] hover:bg-[#00b894] rounded-full shadow-lg shadow-[#00d4aa]/30 flex items-center justify-center transition-all hover:scale-110"
+      >
         <svg className="w-8 h-8 text-black" fill="none" stroke="currentColor" viewBox="0 0 24 24">
           <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 4v16m8-8H4" />
         </svg>
       </button>
+
+      {/* Scanner Modal */}
+      <ScannerModal 
+        isOpen={showScanner} 
+        onClose={() => setShowScanner(false)}
+        onSave={handleSaveBoleta}
+      />
     </div>
   );
 }
