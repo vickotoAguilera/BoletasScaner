@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useRef, useCallback } from 'react';
+import { useState, useRef, useCallback, useEffect } from 'react';
 import Image from 'next/image';
 
 interface BoletaItem {
@@ -54,6 +54,14 @@ export default function ScannerModal({ isOpen, onClose, onSave }: ScannerModalPr
   const [usingCamera, setUsingCamera] = useState(false);
   const [stream, setStream] = useState<MediaStream | null>(null);
 
+  // Efecto para asignar el stream al video cuando ambos estén disponibles
+  useEffect(() => {
+    if (stream && videoRef.current && usingCamera) {
+      videoRef.current.srcObject = stream;
+      videoRef.current.play().catch(console.error);
+    }
+  }, [stream, usingCamera]);
+
   const resetState = useCallback(() => {
     setStep('capture');
     setImagePreview(null);
@@ -86,17 +94,34 @@ export default function ScannerModal({ isOpen, onClose, onSave }: ScannerModalPr
 
   const startCamera = async () => {
     try {
-      const mediaStream = await navigator.mediaDevices.getUserMedia({
-        video: { facingMode: 'environment' }
-      });
-      setStream(mediaStream);
+      // Primero activamos el estado para que se renderice el video
       setUsingCamera(true);
-      if (videoRef.current) {
-        videoRef.current.srcObject = mediaStream;
-      }
+      
+      // Configuración optimizada para móviles
+      const constraints = {
+        video: {
+          facingMode: { ideal: 'environment' },
+          width: { ideal: 1280 },
+          height: { ideal: 1920 }
+        },
+        audio: false
+      };
+      
+      const mediaStream = await navigator.mediaDevices.getUserMedia(constraints);
+      setStream(mediaStream);
+      
+      // Esperar un poco para que el video element esté en el DOM
+      setTimeout(() => {
+        if (videoRef.current) {
+          videoRef.current.srcObject = mediaStream;
+          videoRef.current.play().catch(console.error);
+        }
+      }, 100);
+      
     } catch (err) {
       console.error('Error accessing camera:', err);
-      setError('No se pudo acceder a la cámara');
+      setError('No se pudo acceder a la cámara. Verifica los permisos.');
+      setUsingCamera(false);
     }
   };
 
