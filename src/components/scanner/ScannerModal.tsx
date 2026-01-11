@@ -269,9 +269,9 @@ export default function ScannerModal({ isOpen, onClose, onSave }: ScannerModalPr
                 </div>
                 <div>
                   <label className="block text-xs text-gray-400 mb-1">Ciudad</label>
-                  <select value={boletaData.ciudad || ''} onChange={(e) => updateField('ciudad', e.target.value)} className="w-full bg-white/5 border border-white/10 rounded-lg px-3 py-2 text-sm focus:border-[#00d4aa] focus:outline-none">
-                    <option value="">Seleccionar...</option>
-                    {CIUDADES_CHILE.map(c => <option key={c} value={c}>{c}</option>)}
+                  <select value={boletaData.ciudad || ''} onChange={(e) => updateField('ciudad', e.target.value)} className="w-full bg-[#1a1a1a] border border-white/10 rounded-lg px-3 py-2 text-sm text-white focus:border-[#00d4aa] focus:outline-none appearance-none cursor-pointer" style={{backgroundImage: `url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' fill='none' viewBox='0 0 24 24' stroke='%2300d4aa'%3E%3Cpath stroke-linecap='round' stroke-linejoin='round' stroke-width='2' d='M19 9l-7 7-7-7'%3E%3C/path%3E%3C/svg%3E")`, backgroundPosition: 'right 0.5rem center', backgroundRepeat: 'no-repeat', backgroundSize: '1.5em 1.5em', paddingRight: '2.5rem'}}>
+                    <option value="" className="bg-[#1a1a1a] text-gray-400">Seleccionar...</option>
+                    {CIUDADES_CHILE.map(c => <option key={c} value={c} className="bg-[#1a1a1a] text-white">{c}</option>)}
                   </select>
                 </div>
                 <div>
@@ -280,20 +280,20 @@ export default function ScannerModal({ isOpen, onClose, onSave }: ScannerModalPr
                 </div>
                 <div>
                   <label className="block text-xs text-gray-400 mb-1">Categoría</label>
-                  <select value={boletaData.categoriaSugerida || 'otro'} onChange={(e) => updateField('categoriaSugerida', e.target.value)} className="w-full bg-white/5 border border-white/10 rounded-lg px-3 py-2 text-sm focus:border-[#00d4aa] focus:outline-none">
-                    <option value="supermercado">Supermercado</option>
-                    <option value="farmacia">Farmacia</option>
-                    <option value="restaurante">Restaurante</option>
-                    <option value="transporte">Transporte</option>
-                    <option value="servicios">Servicios</option>
-                    <option value="entretenimiento">Entretenimiento</option>
-                    <option value="ropa">Ropa</option>
-                    <option value="tecnologia">Tecnología</option>
-                    <option value="hogar">Hogar</option>
-                    <option value="salud">Salud</option>
-                    <option value="educacion">Educación</option>
-                    <option value="alimentos">Alimentos</option>
-                    <option value="otro">Otro</option>
+                  <select value={boletaData.categoriaSugerida || 'otro'} onChange={(e) => updateField('categoriaSugerida', e.target.value)} className="w-full bg-[#1a1a1a] border border-white/10 rounded-lg px-3 py-2 text-sm text-white focus:border-[#00d4aa] focus:outline-none appearance-none cursor-pointer" style={{backgroundImage: `url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' fill='none' viewBox='0 0 24 24' stroke='%2300d4aa'%3E%3Cpath stroke-linecap='round' stroke-linejoin='round' stroke-width='2' d='M19 9l-7 7-7-7'%3E%3C/path%3E%3C/svg%3E")`, backgroundPosition: 'right 0.5rem center', backgroundRepeat: 'no-repeat', backgroundSize: '1.5em 1.5em', paddingRight: '2.5rem'}}>
+                    <option value="supermercado" className="bg-[#1a1a1a] text-white">Supermercado</option>
+                    <option value="farmacia" className="bg-[#1a1a1a] text-white">Farmacia</option>
+                    <option value="restaurante" className="bg-[#1a1a1a] text-white">Restaurante</option>
+                    <option value="transporte" className="bg-[#1a1a1a] text-white">Transporte</option>
+                    <option value="servicios" className="bg-[#1a1a1a] text-white">Servicios</option>
+                    <option value="entretenimiento" className="bg-[#1a1a1a] text-white">Entretenimiento</option>
+                    <option value="ropa" className="bg-[#1a1a1a] text-white">Ropa</option>
+                    <option value="tecnologia" className="bg-[#1a1a1a] text-white">Tecnología</option>
+                    <option value="hogar" className="bg-[#1a1a1a] text-white">Hogar</option>
+                    <option value="salud" className="bg-[#1a1a1a] text-white">Salud</option>
+                    <option value="educacion" className="bg-[#1a1a1a] text-white">Educación</option>
+                    <option value="alimentos" className="bg-[#1a1a1a] text-white">Alimentos</option>
+                    <option value="otro" className="bg-[#1a1a1a] text-white">Otro</option>
                   </select>
                 </div>
               </div>
