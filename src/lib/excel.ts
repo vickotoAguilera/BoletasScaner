@@ -14,7 +14,7 @@ import type { Boleta, BoletaItem } from '@/types';
  */
 export function generarExcel(
   boletas: Boleta[],
-  nombreArchivo: string = 'mis-gastos'
+  _nombreArchivo: string = 'mis-gastos'
 ): Uint8Array {
   const workbook = XLSX.utils.book_new();
 
@@ -179,7 +179,7 @@ export function generarExcel(
  */
 export function descargarExcel(boletas: Boleta[], nombreArchivo: string = 'mis-gastos'): void {
   const buffer = generarExcel(boletas, nombreArchivo);
-  const blob = new Blob([buffer], { type: 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet' });
+  const blob = new Blob([buffer.buffer as ArrayBuffer], { type: 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet' });
   const url = URL.createObjectURL(blob);
   const a = document.createElement('a');
   a.href = url;

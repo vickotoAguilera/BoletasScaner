@@ -3,7 +3,7 @@
 import { useState, useEffect } from 'react';
 import Image from "next/image";
 import Link from "next/link";
-import { onAuthStateChanged, User } from 'firebase/auth';
+import { onAuthStateChanged, signOut, User } from 'firebase/auth';
 import { auth } from '@/lib/firebase';
 
 export default function Home() {
@@ -52,24 +52,34 @@ export default function Home() {
           {authLoading ? (
             <div className="w-8 h-8 border-2 border-[#00d4aa] border-t-transparent rounded-full animate-spin" />
           ) : user ? (
-            // Usuario logueado
+            // Usuario logueado - Botones simples
             <div className="flex items-center gap-3">
               {user.photoURL && (
                 <Image
                   src={user.photoURL}
                   alt="Profile"
-                  width={36}
-                  height={36}
+                  width={32}
+                  height={32}
                   className="rounded-full"
                 />
               )}
-              <span className="text-gray-300 hidden sm:block">{user.displayName || user.email?.split('@')[0]}</span>
-              <Link
+              <span className="text-gray-300 hidden sm:block text-sm">{user.displayName || user.email?.split('@')[0]}</span>
+              <a
                 href="/dashboard"
-                className="bg-[#00d4aa] hover:bg-[#00b894] text-black font-medium px-5 py-2.5 rounded-full transition-colors"
+                className="bg-[#00d4aa] hover:bg-[#00b894] text-black font-medium px-4 py-2 rounded-full transition-colors text-sm"
               >
-                Mi Dashboard
-              </Link>
+                Dashboard
+              </a>
+              <button
+                type="button"
+                onClick={async () => {
+                  await signOut(auth);
+                  window.location.reload();
+                }}
+                className="border border-red-500/50 hover:bg-red-500/20 text-red-400 font-medium px-4 py-2 rounded-full transition-colors text-sm"
+              >
+                Salir
+              </button>
             </div>
           ) : (
             // Usuario no logueado
@@ -118,13 +128,12 @@ export default function Home() {
               <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M17 8l4 4m0 0l-4 4m4-4H3" />
             </svg>
           </Link>
-          <button className="flex items-center justify-center gap-2 border border-white/20 hover:border-white/40 text-white font-medium px-8 py-4 rounded-full transition-colors">
+          <Link href="/ayuda" className="flex items-center justify-center gap-2 border border-white/20 hover:border-white/40 text-white font-medium px-8 py-4 rounded-full transition-colors">
             <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M14.752 11.168l-3.197-2.132A1 1 0 0010 9.87v4.263a1 1 0 001.555.832l3.197-2.132a1 1 0 000-1.664z" />
-              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M8.228 9c.549-1.165 2.03-2 3.772-2 2.21 0 4 1.343 4 3 0 1.4-1.278 2.575-3.006 2.907-.542.104-.994.54-.994 1.093m0 3h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
             </svg>
-            <span>Ver Tutorial</span>
-          </button>
+            <span>¿Cómo Funciona?</span>
+          </Link>
         </div>
 
         {/* Phone Mockup */}

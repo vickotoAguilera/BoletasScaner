@@ -7,7 +7,7 @@ import Link from 'next/link';
 import { onAuthStateChanged, signOut, User } from 'firebase/auth';
 import { collection, query, where, orderBy, onSnapshot, addDoc, deleteDoc, doc, Timestamp } from 'firebase/firestore';
 import { auth, db } from '@/lib/firebase';
-import { GoogleAuthProvider, signInWithPopup, getAdditionalUserInfo } from 'firebase/auth';
+import { GoogleAuthProvider, signInWithPopup } from 'firebase/auth';
 import ScannerModal from '@/components/scanner/ScannerModal';
 import { descargarExcel, generarExcel } from '@/lib/excel';
 import { uploadExcelToDrive } from '@/lib/googleDrive';
@@ -49,7 +49,6 @@ export default function DashboardPage() {
   const [selectedBoleta, setSelectedBoleta] = useState<Boleta | null>(null);
   const [showZoom, setShowZoom] = useState(false);
   const [driveUploading, setDriveUploading] = useState(false);
-  const [driveAccessToken, setDriveAccessToken] = useState<string | null>(null);
   const [stats, setStats] = useState({
     totalGeneral: 0,
     ivaTotal: 0,
@@ -231,8 +230,6 @@ export default function DashboardPage() {
         throw new Error('No se pudo obtener acceso a Google Drive');
       }
 
-      setDriveAccessToken(accessToken);
-
       // Convertir boletas al formato requerido
       const boletasExport: BoletaType[] = boletas.map(b => ({
         id: b.id,
@@ -260,8 +257,18 @@ export default function DashboardPage() {
       // Subir a Drive
       const uploadResult = await uploadExcelToDrive(accessToken, excelBuffer, fileName);
 
-      if (uploadResult.success) {
-        alert('✅ Excel subido exitosamente a tu Google Drive en la carpeta "Boleta Scanner"');
+      if (uploadResult.success && uploadResult.fileId) {
+        // Mostrar éxito con enlaces
+        const openFile = confirm(
+          `✅ Excel subido exitosamente!\n\n` +
+          `📁 Carpeta: "Boleta Scanner" en tu Drive\n` +
+          `📄 Archivo: ${fileName}.xlsx\n\n` +
+          `¿Quieres abrir el archivo en Google Drive?`
+        );
+        
+        if (openFile) {
+          window.open(`https://drive.google.com/file/d/${uploadResult.fileId}/view`, '_blank');
+        }
       } else {
         throw new Error(uploadResult.error || 'Error al subir');
       }
@@ -269,8 +276,10 @@ export default function DashboardPage() {
       console.error('Error uploading to Drive:', error);
       if (error instanceof Error && error.message.includes('popup')) {
         alert('Por favor permite el popup para conectar con Google Drive');
+      } else if (error instanceof Error && error.message.includes('Acceso denegado')) {
+        alert('⚠️ ' + error.message);
       } else {
-        alert('Error al subir a Google Drive. Intenta de nuevo.');
+        alert('Error al subir a Google Drive: ' + (error instanceof Error ? error.message : 'Intenta de nuevo'));
       }
     } finally {
       setDriveUploading(false);

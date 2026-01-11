@@ -96,7 +96,17 @@ export async function uploadToDrive(
     );
 
     if (!response.ok) {
-      throw new Error(`Upload failed: ${response.statusText}`);
+      const errorData = await response.json().catch(() => ({}));
+      console.error('Drive API Error:', response.status, errorData);
+      
+      // Mensaje de error más descriptivo
+      if (response.status === 403) {
+        throw new Error('Acceso denegado. Debes habilitar la API de Google Drive en la consola de Google Cloud.');
+      } else if (response.status === 401) {
+        throw new Error('Token expirado. Intenta de nuevo.');
+      }
+      
+      throw new Error(errorData.error?.message || `Error ${response.status}: ${response.statusText}`);
     }
 
     const data = await response.json();
@@ -127,10 +137,10 @@ export async function uploadBoletaImage(
  */
 export async function uploadExcelToDrive(
   accessToken: string,
-  excelBuffer: Uint8Array,
+  excelBuffer: Uint8Array | ArrayBuffer,
   fileName: string
 ): Promise<{ success: boolean; fileId?: string; error?: string }> {
-  const blob = new Blob([excelBuffer], {
+  const blob = new Blob([excelBuffer as ArrayBuffer], {
     type: 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
   });
   return uploadToDrive(accessToken, blob, `${fileName}.xlsx`, 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet');
