@@ -7,8 +7,10 @@ import Link from 'next/link';
 import { onAuthStateChanged, signOut, User } from 'firebase/auth';
 import { collection, query, where, orderBy, onSnapshot, addDoc, deleteDoc, doc, Timestamp } from 'firebase/firestore';
 import { auth, db } from '@/lib/firebase';
+import { GoogleAuthProvider, signInWithPopup, getAdditionalUserInfo } from 'firebase/auth';
 import ScannerModal from '@/components/scanner/ScannerModal';
-import { descargarExcel } from '@/lib/excel';
+import { descargarExcel, generarExcel } from '@/lib/excel';
+import { uploadExcelToDrive } from '@/lib/googleDrive';
 import type { Boleta as BoletaType } from '@/types';
 
 interface BoletaItem {
@@ -45,6 +47,9 @@ export default function DashboardPage() {
   const [boletas, setBoletas] = useState<Boleta[]>([]);
   const [showScanner, setShowScanner] = useState(false);
   const [selectedBoleta, setSelectedBoleta] = useState<Boleta | null>(null);
+  const [showZoom, setShowZoom] = useState(false);
+  const [driveUploading, setDriveUploading] = useState(false);
+  const [driveAccessToken, setDriveAccessToken] = useState<string | null>(null);
   const [stats, setStats] = useState({
     totalGeneral: 0,
     ivaTotal: 0,
@@ -205,6 +210,73 @@ export default function DashboardPage() {
     descargarExcel(boletasExport, `boletas-${new Date().toISOString().split('T')[0]}`);
   };
 
+  const handleUploadToDrive = async () => {
+    if (boletas.length === 0) {
+      alert('No hay boletas para exportar');
+      return;
+    }
+
+    setDriveUploading(true);
+
+    try {
+      // Obtener access token con scope de Drive mediante re-autenticación
+      const provider = new GoogleAuthProvider();
+      provider.addScope('https://www.googleapis.com/auth/drive.file');
+      
+      const result = await signInWithPopup(auth, provider);
+      const credential = GoogleAuthProvider.credentialFromResult(result);
+      const accessToken = credential?.accessToken;
+
+      if (!accessToken) {
+        throw new Error('No se pudo obtener acceso a Google Drive');
+      }
+
+      setDriveAccessToken(accessToken);
+
+      // Convertir boletas al formato requerido
+      const boletasExport: BoletaType[] = boletas.map(b => ({
+        id: b.id,
+        tienda: b.tienda,
+        ciudad: b.ciudad,
+        fecha: b.fecha,
+        totalBruto: b.totalBruto,
+        totalNeto: b.totalNeto,
+        iva: b.iva,
+        categoria: b.categoria as BoletaType['categoria'],
+        imagenURL: b.imagenURL,
+        items: b.items,
+        rutTienda: b.rutTienda || '',
+        direccion: b.direccion || '',
+        numeroBoleta: b.numeroBoleta || '',
+        metodoPago: (b.metodoPago || 'otro') as BoletaType['metodoPago'],
+        createdAt: new Date(),
+        updatedAt: new Date(),
+      }));
+
+      // Generar Excel
+      const excelBuffer = generarExcel(boletasExport);
+      const fileName = `boletas-${new Date().toISOString().split('T')[0]}`;
+
+      // Subir a Drive
+      const uploadResult = await uploadExcelToDrive(accessToken, excelBuffer, fileName);
+
+      if (uploadResult.success) {
+        alert('✅ Excel subido exitosamente a tu Google Drive en la carpeta "Boleta Scanner"');
+      } else {
+        throw new Error(uploadResult.error || 'Error al subir');
+      }
+    } catch (error) {
+      console.error('Error uploading to Drive:', error);
+      if (error instanceof Error && error.message.includes('popup')) {
+        alert('Por favor permite el popup para conectar con Google Drive');
+      } else {
+        alert('Error al subir a Google Drive. Intenta de nuevo.');
+      }
+    } finally {
+      setDriveUploading(false);
+    }
+  };
+
   if (loading) {
     return (
       <div className="min-h-screen bg-[#0a0a0a] flex items-center justify-center">
@@ -282,12 +354,22 @@ export default function DashboardPage() {
           <div>
             <div className="flex items-center justify-between mb-4 gap-2 flex-wrap">
               <h2 className="text-xl font-semibold">Historial de gastos</h2>
-              <div className="flex gap-2">
+              <div className="flex gap-2 flex-wrap">
                 <button onClick={handleExportExcel} className="bg-green-600 hover:bg-green-700 text-white font-medium px-4 py-2 rounded-lg transition-colors flex items-center gap-2">
                   <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                     <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 10v6m0 0l-3-3m3 3l3-3m2 8H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
                   </svg>
-                  Exportar Excel
+                  Descargar
+                </button>
+                <button onClick={handleUploadToDrive} disabled={driveUploading} className="bg-blue-600 hover:bg-blue-700 disabled:bg-blue-800 text-white font-medium px-4 py-2 rounded-lg transition-colors flex items-center gap-2">
+                  {driveUploading ? (
+                    <div className="w-4 h-4 border-2 border-white border-t-transparent rounded-full animate-spin" />
+                  ) : (
+                    <svg className="w-4 h-4" viewBox="0 0 24 24" fill="currentColor">
+                      <path d="M7.71 3.5L1.15 15l4.58 7.5h13.54l4.58-7.5L17.29 3.5H7.71zm.79 1.5h7l5.14 8.5-2.28 3.75H6.64L4.36 13.5 8.5 5z"/>
+                    </svg>
+                  )}
+                  {driveUploading ? 'Subiendo...' : 'Subir a Drive'}
                 </button>
                 <button onClick={() => setShowScanner(true)} className="bg-[#00d4aa] hover:bg-[#00b894] text-black font-medium px-4 py-2 rounded-lg transition-colors flex items-center gap-2">
                   <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -371,10 +453,20 @@ export default function DashboardPage() {
             </div>
             <div className="p-6 overflow-y-auto max-h-[calc(90vh-80px)]">
               <div className="grid md:grid-cols-2 gap-6">
-                {/* Imagen */}
-                <div>
+                {/* Imagen con zoom */}
+                <div className="relative">
                   {selectedBoleta.imagenURL && (
-                    <Image src={selectedBoleta.imagenURL} alt="Boleta" width={400} height={600} className="rounded-xl object-contain w-full max-h-80 bg-white/5" />
+                    <>
+                      <Image 
+                        src={selectedBoleta.imagenURL} 
+                        alt="Boleta" 
+                        width={400} 
+                        height={600} 
+                        className="rounded-xl object-contain w-full max-h-80 bg-white/5 cursor-zoom-in hover:opacity-90 transition-opacity" 
+                        onClick={() => setShowZoom(true)}
+                      />
+                      <p className="text-xs text-gray-500 text-center mt-2">Clic para ampliar</p>
+                    </>
                   )}
                 </div>
                 {/* Datos */}
@@ -434,6 +526,32 @@ export default function DashboardPage() {
               </div>
             </div>
           </div>
+        </div>
+      )}
+
+      {/* Zoom Modal */}
+      {showZoom && selectedBoleta?.imagenURL && (
+        <div 
+          className="fixed inset-0 bg-black/95 z-[100] flex items-center justify-center p-4 cursor-zoom-out"
+          onClick={() => setShowZoom(false)}
+        >
+          <button 
+            className="absolute top-4 right-4 text-white/80 hover:text-white p-2 bg-white/10 rounded-full"
+            onClick={() => setShowZoom(false)}
+          >
+            <svg className="w-8 h-8" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
+            </svg>
+          </button>
+          <Image 
+            src={selectedBoleta.imagenURL} 
+            alt="Boleta ampliada" 
+            width={1200} 
+            height={1600} 
+            className="max-w-full max-h-[95vh] object-contain rounded-lg"
+            onClick={(e) => e.stopPropagation()}
+          />
+          <p className="absolute bottom-4 left-1/2 -translate-x-1/2 text-white/60 text-sm">Clic fuera para cerrar o usa la X</p>
         </div>
       )}
     </div>

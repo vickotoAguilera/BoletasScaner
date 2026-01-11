@@ -1,7 +1,23 @@
+'use client';
+
+import { useState, useEffect } from 'react';
 import Image from "next/image";
 import Link from "next/link";
+import { onAuthStateChanged, User } from 'firebase/auth';
+import { auth } from '@/lib/firebase';
 
 export default function Home() {
+  const [user, setUser] = useState<User | null>(null);
+  const [authLoading, setAuthLoading] = useState(true);
+
+  useEffect(() => {
+    const unsubscribe = onAuthStateChanged(auth, (currentUser) => {
+      setUser(currentUser);
+      setAuthLoading(false);
+    });
+    return () => unsubscribe();
+  }, []);
+
   return (
     <div className="min-h-screen bg-[#0a0a0a] text-white overflow-hidden">
       {/* Gradient Glow Effect */}
@@ -33,18 +49,45 @@ export default function Home() {
         </div>
         
         <div className="flex items-center gap-4">
-          <Link
-            href="/login"
-            className="text-gray-400 hover:text-white transition-colors hidden sm:block"
-          >
-            Iniciar Sesión
-          </Link>
-          <Link
-            href="/register"
-            className="bg-[#00d4aa] hover:bg-[#00b894] text-black font-medium px-5 py-2.5 rounded-full transition-colors"
-          >
-            Comenzar Gratis
-          </Link>
+          {authLoading ? (
+            <div className="w-8 h-8 border-2 border-[#00d4aa] border-t-transparent rounded-full animate-spin" />
+          ) : user ? (
+            // Usuario logueado
+            <div className="flex items-center gap-3">
+              {user.photoURL && (
+                <Image
+                  src={user.photoURL}
+                  alt="Profile"
+                  width={36}
+                  height={36}
+                  className="rounded-full"
+                />
+              )}
+              <span className="text-gray-300 hidden sm:block">{user.displayName || user.email?.split('@')[0]}</span>
+              <Link
+                href="/dashboard"
+                className="bg-[#00d4aa] hover:bg-[#00b894] text-black font-medium px-5 py-2.5 rounded-full transition-colors"
+              >
+                Mi Dashboard
+              </Link>
+            </div>
+          ) : (
+            // Usuario no logueado
+            <>
+              <Link
+                href="/login"
+                className="text-gray-400 hover:text-white transition-colors hidden sm:block"
+              >
+                Iniciar Sesión
+              </Link>
+              <Link
+                href="/register"
+                className="bg-[#00d4aa] hover:bg-[#00b894] text-black font-medium px-5 py-2.5 rounded-full transition-colors"
+              >
+                Comenzar Gratis
+              </Link>
+            </>
+          )}
         </div>
       </nav>
 
@@ -67,10 +110,10 @@ export default function Home() {
         
         <div className="flex flex-col sm:flex-row gap-4 mb-16">
           <Link
-            href="/register"
+            href={user ? "/dashboard" : "/register"}
             className="group flex items-center gap-2 bg-[#00d4aa] hover:bg-[#00b894] text-black font-semibold px-8 py-4 rounded-full transition-all hover:shadow-[0_0_30px_rgba(0,212,170,0.4)]"
           >
-            <span>Comenzar Gratis</span>
+            <span>{user ? "Ir al Dashboard" : "Comenzar Gratis"}</span>
             <svg className="w-5 h-5 group-hover:translate-x-1 transition-transform" fill="none" stroke="currentColor" viewBox="0 0 24 24">
               <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M17 8l4 4m0 0l-4 4m4-4H3" />
             </svg>
@@ -222,10 +265,10 @@ export default function Home() {
             Comienza gratis hoy. No necesitas tarjeta de crédito.
           </p>
           <Link
-            href="/register"
+            href={user ? "/dashboard" : "/register"}
             className="inline-flex items-center gap-2 bg-[#00d4aa] hover:bg-[#00b894] text-black font-semibold px-10 py-4 rounded-full transition-all hover:shadow-[0_0_30px_rgba(0,212,170,0.4)]"
           >
-            Crear Cuenta Gratis
+            {user ? "Ir a Mi Dashboard" : "Crear Cuenta Gratis"}
           </Link>
         </div>
       </section>
