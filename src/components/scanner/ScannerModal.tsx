@@ -172,10 +172,10 @@ export default function ScannerModal({ isOpen, onClose, onSave }: ScannerModalPr
   if (!isOpen) return null;
 
   return (
-    <div className="fixed inset-0 bg-black/80 backdrop-blur-sm z-50 flex items-center justify-center p-4">
-      <div className="bg-[#141414] rounded-2xl w-full max-w-2xl max-h-[90vh] overflow-hidden border border-white/10">
+    <div className="fixed inset-0 bg-black/90 backdrop-blur-sm z-50 flex items-center justify-center p-2 sm:p-4">
+      <div className="bg-[#141414] rounded-2xl w-full max-w-2xl h-[95vh] sm:h-auto sm:max-h-[90vh] overflow-hidden border border-white/10 flex flex-col">
         {/* Header */}
-        <div className="flex items-center justify-between p-4 border-b border-white/10">
+        <div className="flex items-center justify-between p-4 border-b border-white/10 shrink-0">
           <h2 className="text-xl font-semibold">
             {step === 'capture' && 'Escanear Boleta'}
             {step === 'analyzing' && 'Analizando...'}
@@ -189,7 +189,7 @@ export default function ScannerModal({ isOpen, onClose, onSave }: ScannerModalPr
         </div>
 
         {/* Content */}
-        <div className="p-6 overflow-y-auto max-h-[calc(90vh-140px)]">
+        <div className="p-4 sm:p-6 overflow-y-auto flex-1">
           {error && (
             <div className="bg-red-500/10 border border-red-500/50 text-red-400 px-4 py-3 rounded-xl mb-4">
               {error}
@@ -198,13 +198,20 @@ export default function ScannerModal({ isOpen, onClose, onSave }: ScannerModalPr
 
           {/* Step: Capture */}
           {step === 'capture' && (
-            <div className="space-y-6">
+            <div className="space-y-4 sm:space-y-6 h-full">
               {usingCamera ? (
-                <div className="relative">
-                  <video ref={videoRef} autoPlay playsInline className="w-full rounded-xl bg-black" />
+                <div className="relative flex flex-col items-center justify-center" style={{ minHeight: '60vh' }}>
+                  <video 
+                    ref={videoRef} 
+                    autoPlay 
+                    playsInline 
+                    muted
+                    className="w-full h-auto max-h-[65vh] rounded-xl bg-black object-cover"
+                    style={{ aspectRatio: '3/4' }}
+                  />
                   <button
                     onClick={capturePhoto}
-                    className="absolute bottom-4 left-1/2 -translate-x-1/2 w-16 h-16 bg-white rounded-full flex items-center justify-center hover:bg-gray-200 transition-colors"
+                    className="absolute bottom-4 left-1/2 -translate-x-1/2 w-16 h-16 bg-white rounded-full flex items-center justify-center hover:bg-gray-200 transition-colors shadow-lg"
                   >
                     <div className="w-12 h-12 bg-[#00d4aa] rounded-full" />
                   </button>
