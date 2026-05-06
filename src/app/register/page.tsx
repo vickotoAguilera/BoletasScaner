@@ -86,8 +86,14 @@ export default function RegisterPage() {
       });
 
       router.push('/dashboard');
-    } catch (err) {
-      setError('Error al registrarse con Google');
+    } catch (err: any) {
+      if (err.code === 'auth/popup-blocked') {
+        setError('La ventana de Google fue bloqueada. Desactiva los bloqueadores de popups e intenta de nuevo.');
+      } else if (err.code === 'auth/cancelled-popup-request') {
+        setError('Se canceló el registro con Google.');
+      } else {
+        setError('Error al registrarse con Google. Verifica los permisos de ventanas emergentes.');
+      }
       console.error(err);
     } finally {
       setLoading(false);

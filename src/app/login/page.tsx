@@ -37,8 +37,14 @@ export default function LoginPage() {
     try {
       await signInWithPopup(auth, googleProvider);
       router.push('/dashboard');
-    } catch (err) {
-      setError('Error al iniciar sesión con Google');
+    } catch (err: any) {
+      if (err.code === 'auth/popup-blocked') {
+        setError('El navegador bloqueó la ventana de Google. Por favor, desactiva el bloqueador de ventanas emergentes e intenta de nuevo.');
+      } else if (err.code === 'auth/cancelled-popup-request') {
+        setError('Se canceló la conexión con Google.');
+      } else {
+        setError('Error al iniciar sesión con Google. Asegúrate de permitir las ventanas emergentes.');
+      }
       console.error(err);
     } finally {
       setLoading(false);
