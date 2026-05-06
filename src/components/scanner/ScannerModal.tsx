@@ -58,7 +58,9 @@ export default function ScannerModal({ isOpen, onClose, onSave }: ScannerModalPr
   useEffect(() => {
     if (stream && videoRef.current && usingCamera) {
       videoRef.current.srcObject = stream;
-      videoRef.current.play().catch(console.error);
+      videoRef.current.onloadedmetadata = () => {
+        videoRef.current?.play().catch(console.error);
+      };
     }
   }, [stream, usingCamera]);
 
@@ -109,15 +111,6 @@ export default function ScannerModal({ isOpen, onClose, onSave }: ScannerModalPr
       
       const mediaStream = await navigator.mediaDevices.getUserMedia(constraints);
       setStream(mediaStream);
-      
-      // Esperar un poco para que el video element esté en el DOM
-      setTimeout(() => {
-        if (videoRef.current) {
-          videoRef.current.srcObject = mediaStream;
-          videoRef.current.play().catch(console.error);
-        }
-      }, 100);
-      
     } catch (err) {
       console.error('Error accessing camera:', err);
       setError('No se pudo acceder a la cámara. Verifica los permisos.');

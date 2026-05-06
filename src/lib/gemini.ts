@@ -2,10 +2,6 @@
  * Configuración de Gemini AI
  * 
  * Usado para análisis de imágenes de boletas (OCR inteligente)
- * 
- * Estrategia de fallback:
- * 1. Gemini 3 Flash (mejor calidad) - ~100 req/día gratis
- * 2. Gemini 2.5 Flash Lite (backup) - ~1000 req/día gratis
  */
 
 import { GoogleGenerativeAI } from '@google/generative-ai';
@@ -13,45 +9,56 @@ import { GoogleGenerativeAI } from '@google/generative-ai';
 // Inicializar cliente de Gemini
 const genAI = new GoogleGenerativeAI(process.env.GEMINI_API_KEY || '');
 
-// Modelos disponibles
+// Modelos disponibles actualizados (Marzo 2026)
+// gemini-3.1-flash-lite-preview: El más rápido y eficiente para visión/OCR a escala.
 const MODELS = {
-  primary: 'gemini-3-flash-preview',
-  fallback: 'gemini-2.5-flash-lite',
+  primary: 'gemini-3.1-flash-lite-preview',
+  fallback: 'gemini-3-flash-preview',
 };
 
-// Prompt para análisis de boletas
-const BOLETA_PROMPT = `Analiza esta imagen de una boleta/recibo chileno y extrae la siguiente información en formato JSON:
+// Prompt optimizado para boletas chilenas con IVA detallado
+const BOLETA_PROMPT = `Analiza esta imagen de una boleta o recibo chileno y extrae la información en formato JSON.
 
+REGLAS DE NEGOCIO:
+- Los montos deben ser números sin símbolos ($, puntos de miles).
+- La fecha debe estar en formato YYYY-MM-DD.
+- En Chile el IVA es 19%. 
+- Si la boleta NO especifica el IVA, calcúlalo: totalBruto / 1.19 = totalNeto; totalBruto - totalNeto = iva.
+- Para cada producto, intenta extraer o calcular su precioNeto e IVA individual.
+- Sugiere una categoría lógica basada en el comercio.
+
+ESTRUCTURA JSON REQUERIDA:
 {
   "tienda": "nombre del comercio",
-  "rutTienda": "RUT del comercio (formato XX.XXX.XXX-X)",
-  "direccion": "dirección del comercio",
-  "numeroBoleta": "número de la boleta",
-  "fecha": "fecha en formato YYYY-MM-DD",
-  "hora": "hora en formato HH:MM:SS",
+  "rutTienda": "RUT (XX.XXX.XXX-X) o null",
+  "direccion": "dirección completa o null",
+  "ciudad": "ciudad donde está la tienda o null",
+  "numeroBoleta": "número de boleta o null",
+  "fecha": "YYYY-MM-DD",
+  "hora": "HH:MM:SS o null",
   "items": [
     {
-      "cantidad": número,
+      "cantidad": 1,
       "descripcion": "descripción del producto",
-      "precioUnitario": número,
-      "subtotal": número
+      "precioUnitario": 1190,
+      "precioNeto": 1000,
+      "iva": 190,
+      "subtotal": 1190,
+      "subtotalNeto": 1000
     }
   ],
-  "total": número (monto total),
-  "iva": número (monto del IVA),
+  "totalBruto": 1190,
+  "totalNeto": 1000,
+  "iva": 190,
   "metodoPago": "efectivo|debito|credito|transferencia|otro",
-  "categoriaSugerida": "alimentos|supermercado|farmacia|transporte|servicios|entretenimiento|ropa|tecnologia|hogar|salud|educacion|restaurante|otro",
-  "confianza": número del 0 al 100 indicando qué tan seguro estás de la extracción
+  "categoriaSugerida": "supermercado|farmacia|restaurante|transporte|servicios|entretenimiento|ropa|tecnologia|hogar|salud|educacion|alimentos|otro",
+  "confianza": 85
 }
 
-Si algún campo no es legible o no está presente, usa null.
-Responde SOLO con el JSON, sin texto adicional.`;
+Responde SOLO con el JSON válido.`;
 
 /**
  * Analiza una imagen de boleta y extrae los datos
- * @param imageBase64 - Imagen en formato base64
- * @param mimeType - Tipo MIME de la imagen (image/jpeg, image/png, etc.)
- * @returns Datos extraídos de la boleta
  */
 export async function analizarBoleta(
   imageBase64: string,
@@ -62,15 +69,19 @@ export async function analizarBoleta(
   error?: string;
   modelo?: string;
 }> {
-  // Intentar con el modelo principal
+  if (!process.env.GEMINI_API_KEY) {
+    return { success: false, error: 'API key de Gemini no configurada' };
+  }
+
+  // Intentar con el modelo Lite (más eficiente para visión a escala)
   try {
     const result = await analizarConModelo(MODELS.primary, imageBase64, mimeType);
     return { success: true, data: result, modelo: MODELS.primary };
   } catch (error) {
-    console.warn('Gemini 3 Flash falló, intentando con fallback...', error);
+    console.warn(`Gemini ${MODELS.primary} falló, intentando con fallback...`, error);
   }
 
-  // Fallback al modelo secundario
+  // Fallback al modelo Flash estándar
   try {
     const result = await analizarConModelo(MODELS.fallback, imageBase64, mimeType);
     return { success: true, data: result, modelo: MODELS.fallback };

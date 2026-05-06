@@ -448,6 +448,11 @@ export default function DashboardPage() {
       {/* Scanner Modal */}
       <ScannerModal isOpen={showScanner} onClose={() => setShowScanner(false)} onSave={handleSaveBoleta} />
 
+      {/* Credits Footer */}
+      <div className="fixed bottom-4 left-8 text-gray-500 text-xs hidden lg:block">
+        Creado por vickoto de <a href="https://victechweb.cl" target="_blank" rel="noopener noreferrer" className="text-[#00d4aa] hover:underline">victechweb.cl</a>
+      </div>
+
       {/* Detail Modal */}
       {selectedBoleta && (
         <div className="fixed inset-0 bg-black/80 backdrop-blur-sm z-50 flex items-center justify-center p-4">

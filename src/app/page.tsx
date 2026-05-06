@@ -3,10 +3,12 @@
 import { useState, useEffect } from 'react';
 import Image from "next/image";
 import Link from "next/link";
+import { useRouter } from 'next/navigation';
 import { onAuthStateChanged, signOut, User } from 'firebase/auth';
 import { auth } from '@/lib/firebase';
 
 export default function Home() {
+  const router = useRouter();
   const [user, setUser] = useState<User | null>(null);
   const [authLoading, setAuthLoading] = useState(true);
 
@@ -74,7 +76,7 @@ export default function Home() {
                 type="button"
                 onClick={async () => {
                   await signOut(auth);
-                  window.location.reload();
+                  router.push('/');
                 }}
                 className="border border-red-500/50 hover:bg-red-500/20 text-red-400 font-medium px-4 py-2 rounded-full transition-colors text-sm"
               >
@@ -296,7 +298,7 @@ export default function Home() {
             <span className="font-semibold">Boleta Scanner</span>
           </div>
           <p className="text-gray-500 text-sm">
-            © 2026 Boleta Scanner. Creado por <span className="text-[#00d4aa]">vickoto</span>
+            © 2026 Boleta Scanner. Creado por vickoto de <a href="https://victechweb.cl" target="_blank" rel="noopener noreferrer" className="text-[#00d4aa] hover:underline">victechweb.cl</a>
           </p>
         </div>
       </footer>
